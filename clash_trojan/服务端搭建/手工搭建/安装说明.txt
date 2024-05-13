@@ -1,0 +1,138 @@
+===================
+第一步： 安装 必要软件
+===================
+------以debain系统为例-------
+（1）
+安装nginx
+apt install nginx
+安装 trojan的依赖
+sudo apt -y install build-essential cmake libboost-system-dev libboost-program-options-dev libssl-dev default-libmysqlclient-dev
+安装git
+apt install git
+
+===================
+第二部：配置nginx
+===================
+（1）
+查看nginx状态
+ systemctl status nginx
+（2）
+修改 nginx配置
+vim  /etc/nginx/nginx.conf
+####
+user  www-data;
+worker_processes  2;
+
+pid        /var/run/nginx.pid;
+error_log /var/log/nginx_error.log;
+
+events {
+	use epoll;
+	worker_connections  1024;
+	multi_accept on;
+}
+http {
+	include       mime.types;
+	default_type  application/octet-stream;
+	charset utf-8;
+	sendfile on;
+	tcp_nopush     on;
+	tcp_nodelay on;
+	keepalive_timeout  60;
+	client_header_buffer_size 4k;
+	open_file_cache max=102400 inactive=20s;
+	open_file_cache_valid 30s;
+	open_file_cache_min_uses 1;
+	client_header_timeout 15;
+	client_body_timeout 15;
+	reset_timedout_connection on;
+	send_timeout 15;
+	gzip on;
+	gzip_disable "msie6";
+	gzip_vary on;
+	gzip_proxied any;
+	gzip_comp_level 3;
+	gzip_buffers 16 8k;
+	gzip_http_version 1.1;
+	gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+	server_tokens off;
+	access_log  /var/log/nginx_access.log;
+	server {
+#		listen      443 ssl;
+		listen      0.0.0.0:80;
+		server_name  weiyangbo.com www.weiyangbo.com; #此处填你网站的域名
+		#让Nginx让出443端口，只监听80,ssl设置也不需要了，一切交给Trojan
+#		ssl_certificate /etc/nginx/cert/xxxxxxx.pem;
+#		ssl_certificate_key /etc/nginx/cert/xxxxxxx.key;
+#		ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+#		ssl_prefer_server_ciphers on;
+#		ssl_session_timeout 5m;
+#		ssl_ciphers  ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
+		root /www; #此处填你的网站目录
+		location / {
+			expires 10h;
+			fancyindex on;
+			fancyindex_exact_size off;
+			fancyindex_localtime on;
+			fancyindex_header "/fancyindex/header.html";
+			fancyindex_footer "/fancyindex/footer.html";
+			fancyindex_ignore "fancyindex" "Download";  #可以自定义文件服务器中不显示的文件或文件夹
+			fancyindex_name_length 500;
+		}
+		#这是防盗链设置
+		location ~*  ^.+\.(jpg|gif|png|img|apk|tar.gz|wmv|jpeg|mp3|mp4|zip|rar)$ {
+			valid_referers none blocked www.weiyangbo.com weiyangbo.com;
+			if ($invalid_referer){
+				return 403;
+				break;
+			}
+			access_log off;
+		}
+	}
+}
+（3）
+验证语法是否有错误
+nginx -t
+（4）
+重启
+nginx -s reload
+
+===================
+第三部 安装trojan
+===================
+（1）
+构建和安装
+git clone https://github.com/trojan-gfw/trojan.git
+cd trojan/
+mkdir build
+cd build/
+cmake .. -DENABLE_MYSQL=OFF -DENABLE_SSL_KEYLOG=ON -DFORCE_TCP_FASTOPEN=ON -DSYSTEMD_SERVICE=AUTO
+make
+ctest
+sudo make install
+
+（2）
+修改配置文件
+vi /usr/local/etc/trojan/config.json
+（3）
+添加命令
+
+vi /etc/systemd/system/trojan.service
+
+[Unit]
+After=network.target 
+
+[Service]
+ExecStart=/root/trojan/build/trojan -c "/usr/local/etc/trojan/config.json"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+（4）
+启动
+systemctl start trojan
+设置开机启动
+systemctl enable trojan
+
+
