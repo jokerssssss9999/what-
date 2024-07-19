@@ -1,1 +1,1 @@
-https://cloudrender-test.migu.cn:8542/mcc/?appId=d240abfa0d5f4609af674dcc8a79e62f&tenantId=57bbc42a804f4b90a7f612ce751f3dcd&tenantSecret=p%2BlQPlKeTFIJGOtaHUzjWA%3D%3D&serverIp=10.162.205.242&userId=sp2&stage=next#/cloud?debug=1
+
